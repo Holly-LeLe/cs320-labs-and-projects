@@ -1,0 +1,37 @@
+{
+  "fruits": {
+    "apple": 1.25,
+    "banana": 0.75,
+    "orange": 1.50,
+    "grape": 2.00,
+    "mango": 2.50
+  },
+  "dairy": {
+    "milk": 3.25,
+    "cheese": 4.50,
+    "yogurt": 1.75,
+    "butter": 3.00,
+    "eggs": 2.75
+  },
+  "meats": {
+    "chicken breast": 5.50,
+    "ground beef": 6.25,
+    "pork chops": 5.00,
+    "bacon": 4.75,
+    "salmon": 8.50
+  },
+  "vegetables": {
+    "carrot": 1.20,
+    "broccoli": 2.25,
+    "spinach": 1.75,
+    "potato": 0.80,
+    "onion": 0.90
+  },
+  "bakery": {
+    "bread": 2.50,
+    "bagel": 1.20,
+    "croissant": 2.00,
+    "muffin": 1.50,
+    "donut": 1.25
+  }
+}
