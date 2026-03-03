@@ -146,6 +146,39 @@ def loans_test():
     assert bank[8].property_value == 215000
     assert len(bank[8].applicants) == 1
     loans_points += 1
+    
+    # -----------------------------
+    # Additional tests (4 points)
+    # -----------------------------
+
+    # (1) Applicant: unknown codes should be ignored (1 pt)
+    a = loans.Applicant("20-30", ["999", ""])
+    assert a.race == set()
+    loans_points += 1
+
+    # (2) Applicant: duplicate race codes should not duplicate identities (set behavior) (1 pt)
+    a = loans.Applicant("20-30", ["5", "5", "5"])
+    assert a.race == {"White"}
+    loans_points += 1
+
+    # (3) Loan: when co-applicant is 9999, should not create a 2nd applicant (1 pt)
+    d2 = {"loan_amount": "100", "property_value": "200", "interest_rate": "3.0",
+          "applicant_age": "20", "applicant_race-1": "5", "applicant_race-2": "",
+          "applicant_race-3": "", "applicant_race-4": "", "applicant_race-5": "",
+          "co-applicant_age": "9999", "co-applicant_race-1": "3", "co-applicant_race-2": "",
+          "co-applicant_race-3": "", "co-applicant_race-4": "", "co-applicant_race-5": ""}
+    loan2 = loans.Loan(d2)
+    assert len(loan2.applicants) == 1
+    loans_points += 1
+
+    # (4) Bank: __getitem__ should raise IndexError for out-of-range (1 pt)
+    b2 = loans.Bank("First Home Bank")
+    try:
+        _ = b2[len(b2)]   # valid indices: 0..len(b2)-1
+        assert False
+    except IndexError:
+        pass
+    loans_points += 1
 
 def search_test():
     global search_points
