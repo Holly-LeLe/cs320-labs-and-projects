@@ -22,6 +22,8 @@ import requests
 import pandas as pd
 from selenium.webdriver.common.by import By
 from urllib.parse import urljoin
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 
@@ -189,24 +191,34 @@ def reveal_secrets(driver, url, travellog):
 
     driver.get(url)
 
-    password_box = driver.find_element(By.TAG_NAME, "input")
+    password_box = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.TAG_NAME, "input"))
+    )
     password_box.clear()
     password_box.send_keys(password)
 
     go_button = driver.find_element(By.TAG_NAME, "button")
     go_button.click()
-    time.sleep(2)
 
-    buttons = driver.find_elements(By.TAG_NAME, "button")
-    view_button = buttons[0]
-    for b in buttons:
-        if "View" in b.text:
-            view_button = b
-            break
+    view_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'View')]"))
+    )
     view_button.click()
-    time.sleep(2)
 
-    location = driver.find_element(By.TAG_NAME, "h4").text
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.TAG_NAME, "img"))
+    )
+
+    location = ""
+    for tag in ["h1", "h2", "h3", "h4", "p", "div", "span"]:
+        elems = driver.find_elements(By.TAG_NAME, tag)
+        for elem in elems:
+            text = elem.text.strip()
+            if "STADIUM" in text.upper():
+                location = text
+                break
+        if location:
+            break
 
     img = driver.find_element(By.TAG_NAME, "img")
     img_url = img.get_attribute("src")
