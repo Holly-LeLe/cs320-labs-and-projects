@@ -188,17 +188,21 @@ def reveal_secrets(driver, url, travellog):
     password = get_password(travellog)
 
     driver.get(url)
-    time.sleep(1)
 
     password_box = driver.find_element(By.TAG_NAME, "input")
     password_box.clear()
     password_box.send_keys(password)
 
-    go_button = driver.find_element(By.XPATH, "//button[text()='GO']")
+    go_button = driver.find_element(By.TAG_NAME, "button")
     go_button.click()
     time.sleep(2)
 
-    view_button = driver.find_element(By.XPATH, "//button[text()='View Location']")
+    buttons = driver.find_elements(By.TAG_NAME, "button")
+    view_button = buttons[0]
+    for b in buttons:
+        if "View" in b.text:
+            view_button = b
+            break
     view_button.click()
     time.sleep(2)
 
@@ -208,6 +212,8 @@ def reveal_secrets(driver, url, travellog):
     img_url = img.get_attribute("src")
 
     r = requests.get(img_url)
+    r.raise_for_status()
+
     with open("Current_Location.jpg", "wb") as f:
         f.write(r.content)
 
