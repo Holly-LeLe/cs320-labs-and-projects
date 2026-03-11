@@ -7,19 +7,22 @@ If you're working alone, enter `None` for the partner fields.
 
 '''
 Project: MP4
-Student 1: <Name>, <NETID>
-Student 2: <Name>, <NETID>
-Student 3: <Name>, <NETID>
+Student 1: zhengyang yu, zyu447
+Student 2: Holly Li, wli682
+Student 3: renxiang chao, rchao5
 '''
 
 # Add additional imports if needed
 
+import os
 from collections import deque
 from io import StringIO
 import time
 import requests
 import pandas as pd
 from selenium.webdriver.common.by import By
+from urllib.parse import urljoin
+
 
 
 class GraphSearcher:
@@ -40,16 +43,41 @@ class GraphSearcher:
     def dfs_search(self, node):
         # 1. clear out visited set and order list
         # 2. start recursive search by calling dfs_visit
+        # 1) reset
+        self.visited = set()
+        self.order = []
+        # 2) run recursion
+        self.dfs_visit(node)
 
     def dfs_visit(self, node):
         # 1. if this node has already been visited, just `return` (no value necessary)
         # 2. mark node as visited by adding it to the set
         # 3. call self.visit_and_get_children(node) to get the children
         # 4. in a loop, call dfs_visit on each of the children
+        if node in self.visited:
+            return
+        self.visited.add(node)
+        children = self.visit_and_get_children(node)
+        for child in children:
+            self.dfs_visit(child)
 
     def bfs_search(self, node):
         # TODO: implement bfs
-        pass
+        # reset
+        self.visited = set()
+        self.order = []
+
+        q = deque()
+        q.append(node)
+        self.visited.add(node)
+
+        while q:
+            cur = q.popleft()
+            children = self.visit_and_get_children(cur)
+            for child in children:
+                if child not in self.visited:
+                    self.visited.add(child)
+                    q.append(child)
 
 
 class MatrixSearcher(GraphSearcher):
@@ -59,8 +87,14 @@ class MatrixSearcher(GraphSearcher):
 
     def visit_and_get_children(self, node):
         # TODO: Record the node value in self.order
+        self.order.append(node)
+
         children = []
         # TODO: use `self.df` to determine what children the node has and append them
+        row = self.df.loc[node]
+        for col, val in row.items():
+            if int(val) == 1:
+                children.append(col)
         return children
 
 
@@ -69,13 +103,21 @@ class FileSearcher(GraphSearcher):
         super().__init__()
 
     def visit_and_get_children(self, node):
-        # TODO: open the file in file_nodes, then parse the value and children
-        # TODO: record value in self.order
-        pass
+        path = os.path.join("file_nodes", node)
+        with open(path, "r", encoding="utf-8") as f:
+            lines = [line.rstrip("\n") for line in f.readlines()]
+
+        value = lines[0].strip() if len(lines) > 0 else ""
+        self.order.append(value)
+
+        if len(lines) < 2 or lines[1].strip() == "":
+            return []
+
+        children = [x.strip() for x in lines[1].split(",") if x.strip() != ""]
+        return children
 
     def concat_order(self):
-        # TODO: return joined string of self.order
-        pass
+        return "".join(self.order)
 
 
 class WebSearcher(GraphSearcher):
@@ -85,14 +127,51 @@ class WebSearcher(GraphSearcher):
         self.tables = []
 
     def visit_and_get_children(self, node):
-        # TODO: record node in self.order
-        # TODO: fetch the page, parse HTML table into pandas, store it
-        # TODO: return list of links (<a> tags)
-        pass
+        # record node in visit order
+        self.order.append(node)
+
+        # visit page
+        self.driver.get(node)
+
+        # read tables; keep ONLY the travellog fragment table
+        try:
+            dfs = pd.read_html(node)
+            want = {"clue", "latitude", "longitude", "description"}
+
+            for t in dfs:
+                # normalize column names for matching
+                cols = [str(c).strip().lower() for c in t.columns]
+                if want.issubset(set(cols)):
+                    t2 = t.copy()
+                    t2.columns = cols  # force exact column names like the csv
+                    # keep only the 4 columns, in a stable order
+                    t2 = t2[["clue", "latitude", "longitude", "description"]]
+                    self.tables.append(t2)
+                    break  # only one per page
+        except ValueError:
+            pass
+
+        # collect links
+        links = []
+        a_tags = self.driver.find_elements(By.TAG_NAME, "a")
+        for a in a_tags:
+            href = a.get_attribute("href")
+            if href:
+                links.append(href)
+
+        # dedupe, preserve order
+        seen = set()
+        out = []
+        for x in links:
+            if x not in seen:
+                seen.add(x)
+                out.append(x)
+        return out
 
     def table(self):
-        # TODO: return combined DataFrame
-        pass
+        if not self.tables:
+            return pd.DataFrame(columns=["clue", "latitude", "longitude", "description"])
+        return pd.concat(self.tables, ignore_index=True)
 
 
 def get_password(travellog):
@@ -100,18 +179,36 @@ def get_password(travellog):
     Given a DataFrame-like object with a 'clue' column,
     combine values into a password string.
     """
-    # TODO: build string from travellog['clue']
-    pass
-
-
+    # travellog is a DataFrame with column 'clue'
+    parts = []
+    for x in travellog["clue"].tolist():
+        parts.append(str(x))
+    return "".join(parts)
 def reveal_secrets(driver, url, travellog):
-    """
-    Automate secret-revealing:
-    1. Generate clue/password
-    2. Enter password into webpage
-    3. Click buttons, wait for image
-    4. Save image
-    5. Return the location text
-    """
-    # TODO: implement using Selenium driver, retries, and requests
-    pass
+    password = get_password(travellog)
+
+    driver.get(url)
+    time.sleep(1)
+
+    password_box = driver.find_element(By.TAG_NAME, "input")
+    password_box.clear()
+    password_box.send_keys(password)
+
+    go_button = driver.find_element(By.XPATH, "//button[text()='GO']")
+    go_button.click()
+    time.sleep(2)
+
+    view_button = driver.find_element(By.XPATH, "//button[text()='View Location']")
+    view_button.click()
+    time.sleep(2)
+
+    location = driver.find_element(By.TAG_NAME, "h4").text
+
+    img = driver.find_element(By.TAG_NAME, "img")
+    img_url = img.get_attribute("src")
+
+    r = requests.get(img_url)
+    with open("Current_Location.jpg", "wb") as f:
+        f.write(r.content)
+
+    return location
